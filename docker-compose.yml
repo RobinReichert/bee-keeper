@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/dockerfile.build
+    container_name: beekeeper-app
+    ports:
+      - "8082:80"
+      - "6060:6060"
+    environment:
+      - DBEE_HOST=${DBEE_HOST}
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true
