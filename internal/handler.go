@@ -16,19 +16,20 @@ func NewTableHandler(env *env) *newTableHandler {
 }
 
 func (t *newTableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var payload map[string]any
 	err := json.NewDecoder(r.Body).Decode(&payload)
-	defer r.Body.Close()
+	if err != nil {
+		ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+		return
+	}
+	columns, ok := payload["columns"].([]string)
+	if !ok {
+		ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+	}
+	log.Println(columns)
 	//query := "CREATE TABLE IF NOT EXISTS "
-	if err != nil {
-		ErrorHandler(http.StatusInternalServerError, "internal server error").ServeHTTP(w, r)
-		return
-	}
 
-	err = t.env.dbee.Exec("CREATE TABLE test (id SERIAL PRIMARY KEY, status BOOLEAN, score INT, email TEXT NOT NULL)")
-	if err != nil {
-		return
-	}
 }
 
 type tableNamesHandler struct {
@@ -74,19 +75,25 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type errorHandler struct {
-	code    int
-	message string
+	Code    int
+	Message string
 }
 
 func ErrorHandler(code int, message string) *errorHandler {
-	return &errorHandler{code: code, message: message}
+	return &errorHandler{Code: code, Message: message}
 }
 
 func (t *errorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	html, err := template.ParseFiles("/app/web/templates/error.html")
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	html.Execute(w, *t)
+	err = html.Execute(w, t)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 }
