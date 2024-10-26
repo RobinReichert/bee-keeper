@@ -29,7 +29,7 @@ async function initTableNames() {
 
 initTableNames();
 
-let types = ["text", "number", "time"];
+let types = ["INT", "TEXT"];
 
 function addColumnTableRow() {
   let table = document.getElementById("column-table-body");
@@ -39,12 +39,14 @@ function addColumnTableRow() {
   nameInput.type = "text";
   nameInput.classList.add("form-control");
   nameInput.classList.add("form-control-sm");
+  nameInput.classList.add("col-name");
   nameCell.appendChild(nameInput);
   row.appendChild(nameCell);
   let typeCell = document.createElement("td");
   let typeSelect = document.createElement("select");
   typeSelect.classList.add("form-select");
   typeSelect.classList.add("form-select-sm");
+  typeSelect.classList.add("col-type");
   let selected = document.createElement("option");
   selected.selected = true;
   selected.textContent = "type";
@@ -62,12 +64,14 @@ function addColumnTableRow() {
   defaultInput.type = "text";
   defaultInput.classList.add("form-control");
   defaultInput.classList.add("form-control-sm");
+  defaultInput.classList.add("col-default");
   defaultInput.placeholder = "NULL";
   defaultCell.appendChild(defaultInput);
   row.appendChild(defaultCell);
   let primaryCell = document.createElement("td");
   let primaryInput = document.createElement("input");
   primaryInput.type = "checkbox";
+  primaryInput.classList.add("col-primary");
   primaryInput.classList.add("form-check-input");
   primaryCell.appendChild(primaryInput);
   row.appendChild(primaryCell);
@@ -89,4 +93,76 @@ document.getElementById("add-column-button").addEventListener("click", (_) => {
   addColumnTableRow();
 });
 
-async function createNewTable() {}
+async function createNewTable() {
+  let invalid = false;
+  let tableNameInput = document.getElementById("new-table-name");
+  let tableName = tableNameInput.value;
+  if (tableName == "") {
+    invalid = true;
+    tableNameInput.classList.add("is-invalid");
+  } else {
+    tableNameInput.classList.remove("is-invalid");
+    tableNameInput.classList.add("is-valid");
+  }
+  let columns = [];
+  let primaryChosen = false;
+  let table = document.getElementById("column-table-body");
+  table.childNodes.forEach((row) => {
+    let nameInput = row.querySelector(".col-name");
+    let name = nameInput.value;
+    if (name == "") {
+      invalid = true;
+      nameInput.classList.add("is-invalid");
+    } else {
+      nameInput.classList.remove("is-invalid");
+      nameInput.classList.add("is-valid");
+    }
+    let typeInput = row.querySelector(".col-type");
+    let type = typeInput.value;
+    if (type == "type") {
+      invalid = true;
+      typeInput.classList.add("is-invalid");
+    } else {
+      typeInput.classList.remove("is-invalid");
+      typeInput.classList.add("is-valid");
+    }
+    let defaultInput = row.querySelector(".col-default");
+    let deflt = defaultInput.value;
+    defaultInput.classList.add("is-valid");
+    let primaryInput = row.querySelector(".col-primary");
+    let primary = primaryInput.checked;
+    if (primary) {
+      if (primaryChosen) {
+        invalid = true;
+        primaryInput.classList.add("is-invalid");
+      } else {
+        primaryInput.classList.remove("is-invalid");
+        primaryInput.classList.add("is-valid");
+      }
+      primaryChosen = true;
+    }
+    columns.push({
+      name: name,
+      type: type,
+      default: deflt,
+      primary: primary,
+    });
+  });
+  if (!primaryChosen) {
+    invalid = true;
+    table.querySelector(".col-primary").classList.add("is-invalid");
+  }
+  if (!invalid) {
+    let body = { name: tableName, columns: columns };
+    let response = await fetch("http://localhost:8082/newTable", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    console.log(response);
+  }
+  console.log(columns);
+}
+
+document.getElementById("add-table-button").addEventListener("click", (_) => {
+  createNewTable();
+});

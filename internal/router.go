@@ -15,6 +15,7 @@ func Router(env env) router {
 
 	//api
 	mux.Handle("/tableNames", TableNamesHandler(env))
+	mux.Handle("/newTable", NewTableHandler(env))
 
 	//templates
 	mux.Handle("/docs", TemplateHandler("/docs", "docs.html"))

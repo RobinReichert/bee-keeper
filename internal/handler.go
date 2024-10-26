@@ -8,10 +8,10 @@ import (
 )
 
 type newTableHandler struct {
-	env *env
+	env env
 }
 
-func NewTableHandler(env *env) *newTableHandler {
+func NewTableHandler(env env) *newTableHandler {
 	return &newTableHandler{env: env}
 }
 
@@ -23,13 +23,67 @@ func (t *newTableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
 		return
 	}
-	columns, ok := payload["columns"].([]string)
+	log.Println(payload)
+	name, ok := payload["name"].(string)
 	if !ok {
 		ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+		return
 	}
-	log.Println(columns)
-	//query := "CREATE TABLE IF NOT EXISTS "
-
+	columnsInterface, ok := payload["columns"].([]any)
+	if !ok {
+		ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+		return
+	}
+	columns := make([]map[string]any, len(columnsInterface))
+	for index, column := range columnsInterface {
+		columnVal, ok := column.(map[string]any)
+		if !ok {
+			ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+			return
+		}
+		columns[index] = columnVal
+	}
+	query := "CREATE TABLE IF NOT EXISTS " + name + " ("
+	for index, column := range columns {
+		colName, ok := column["name"].(string)
+		if !ok {
+			ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+			return
+		}
+		colType, ok := column["type"].(string)
+		if !ok {
+			ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+			return
+		}
+		colDefault, ok := column["default"].(string)
+		if !ok {
+			ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+			return
+		}
+		primary, ok := column["primary"].(bool)
+		if !ok {
+			ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+			return
+		}
+		query = query + colName + " " + colType
+		if colDefault != "" {
+			query = query + " " + colDefault
+		}
+		if primary {
+			query = query + " PRIMARY KEY"
+		}
+		if index < len(columns)-1 {
+			query = query + ","
+		}
+	}
+	query = query + ")"
+	err = t.env.dbee.Exec(query)
+	if err != nil {
+		ErrorHandler(http.StatusBadRequest, "bad request").ServeHTTP(w, r)
+		return
+	}
+	log.Println(query)
+	w.Write([]byte{})
 }
 
 type tableNamesHandler struct {
@@ -90,6 +144,7 @@ func (t *errorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(t.Code)
 	err = html.Execute(w, t)
 	if err != nil {
 		log.Println(err)
